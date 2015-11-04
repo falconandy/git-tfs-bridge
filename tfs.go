@@ -19,15 +19,46 @@ func OpenTfsRepository(path string) *TfsRepository {
 	return &TfsRepository{path:path}
 }
 
-func (repo *TfsRepository) GetHistory(count int) []*TfsHistoryItem {
+func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistoryItem {
 	var history []*TfsHistoryItem
-	output, err := repo.execCommand("history", repo.path, "/recursive", "/noprompt", "/format:Detailed", fmt.Sprintf("/stopafter:%d", count))
+	commandArgs := []string { "history", repo.path, "/recursive", "/noprompt", "/format:Detailed", fmt.Sprintf("/stopafter:%d", count) }
+	if fromChangeset > 0 {
+		commandArgs = append(commandArgs, fmt.Sprintf("/version:C%d", fromChangeset))
+	}
+	output, err := repo.execCommand(commandArgs...)
 	if err != nil {
 		log.Println(err)
 	} else {
 		history = parseHistory(ansi2utf8(output), count)
 	}
 	return history
+}
+
+func (repo *TfsRepository) GetHistoryAfter(changeset int) []*TfsHistoryItem {
+	var result []*TfsHistoryItem
+	fromChangeset := 0
+	for {
+		history := repo.GetHistory(fromChangeset, 100)
+		if len(history) == 0 {
+			break
+		} else if history[0].changeset <= changeset {
+			break
+		} else if history[len(history)-1].changeset > changeset {
+			result = append(result, history...)
+			fromChangeset = history[len(history)-1].changeset - 1
+			continue
+		} else {
+			for _, histItem := range history {
+				if histItem.changeset > changeset {
+					result = append(result, histItem)
+				} else {
+					break
+				}
+			}
+			break
+		}
+	}
+	return result
 }
 
 func (repo *TfsRepository) execCommand(args ...string) ([]byte, error) {
