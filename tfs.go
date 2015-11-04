@@ -19,6 +19,13 @@ func OpenTfsRepository(path string) *TfsRepository {
 	return &TfsRepository{path:path}
 }
 
+func (repo *TfsRepository) Update(changeset int) {
+	_, err := repo.execCommand("get", repo.path, "/recursive", "/noprompt", "/overwrite", fmt.Sprintf("/version:C%d", changeset))
+	if err != nil {
+		log.Println(err)
+	}
+}
+
 func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistoryItem {
 	var history []*TfsHistoryItem
 	commandArgs := []string { "history", repo.path, "/recursive", "/noprompt", "/format:Detailed", fmt.Sprintf("/stopafter:%d", count) }
