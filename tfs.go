@@ -20,7 +20,11 @@ func OpenTfsRepository(path string) *TfsRepository {
 }
 
 func (repo *TfsRepository) Update(changeset int) {
-	_, err := repo.execCommand("get", repo.path, "/recursive", "/noprompt", "/overwrite", fmt.Sprintf("/version:C%d", changeset))
+	commandArgs := []string { "get", repo.path, "/recursive", "/noprompt", "/overwrite" }
+	if changeset > 0 {
+		commandArgs = append(commandArgs, fmt.Sprintf("/version:C%d", changeset))
+	}
+	_, err := repo.execCommand(commandArgs...)
 	if err != nil {
 		log.Println(err)
 	}
