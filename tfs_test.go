@@ -43,7 +43,7 @@ func TestCompareDirectory(t *testing.T) {
 }
 
 func TestToGit(t *testing.T) {
-	tfs := bridge.OpenTfsRepository(`D:\Projects\Sungero\Main\Common`)
+	tfs := bridge.OpenTfsRepository(`D:\Projects\Sungero\Main\Kernel`)
 	git, _ := bridge.OpenGitRepository(`D:\Projects\_sun\Main`)
 	gitIgnore, _ := ignore.CompileIgnoreFile(`D:\Projects\_sun\Main\.gitignore`)
 	history := bridge.TfsHistory(tfs.GetHistoryAfter(98866))
@@ -51,32 +51,32 @@ func TestToGit(t *testing.T) {
 	for _, historyItem := range history {
 		log.Println(historyItem.GetChangeset())
 		tfs.Update(historyItem.GetChangeset())
-		leftOnly, rightOnly, diffs := bridge.CompareDirectories(`D:\Projects\_sun\Main\Common`, `D:\Projects\Sungero\Main\Common`, gitIgnore)
+		leftOnly, rightOnly, diffs := bridge.CompareDirectories(`D:\Projects\_sun\Main\Kernel`, `D:\Projects\Sungero\Main\Kernel`, gitIgnore)
 		if len(leftOnly) + len(rightOnly) + len(diffs) == 0 {
 			continue
 		}
 		for path := range leftOnly {
-			os.Remove(filepath.Join(`D:\Projects\_sun\Main\Common`, path))
+			os.Remove(filepath.Join(`D:\Projects\_sun\Main\Kernel`, path))
 		}
 		for path := range rightOnly {
-			content, err := ioutil.ReadFile(filepath.Join(`D:\Projects\Sungero\Main\Common`, path))
+			content, err := ioutil.ReadFile(filepath.Join(`D:\Projects\Sungero\Main\Kernel`, path))
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			err = ioutil.WriteFile(filepath.Join(`D:\Projects\_sun\Main\Common`, path), content, 0666)
+			err = ioutil.WriteFile(filepath.Join(`D:\Projects\_sun\Main\Kernel`, path), content, 0666)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 		}
 		for path := range diffs {
-			content, err := ioutil.ReadFile(filepath.Join(`D:\Projects\Sungero\Main\Common`, path))
+			content, err := ioutil.ReadFile(filepath.Join(`D:\Projects\Sungero\Main\Kernel`, path))
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			err = ioutil.WriteFile(filepath.Join(`D:\Projects\_sun\Main\Common`, path), content, 0666)
+			err = ioutil.WriteFile(filepath.Join(`D:\Projects\_sun\Main\Kernel`, path), content, 0666)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -85,6 +85,10 @@ func TestToGit(t *testing.T) {
 		git.StageAll()
 		comment, author, date := historyItem.GetComment(), historyItem.GetAuthor(), historyItem.GetDate()
 		author = strings.TrimPrefix(author, `NT_WORK\`)
+		if comment != "" {
+			comment += "\r\n\r\n"
+		}
+		comment += fmt.Sprintf("git-tfs-bridge: imported from TFS %d", historyItem.GetChangeset())
 		git.Commit(comment, fmt.Sprintf("%s <%s@directum.ru>", author, author), date)
 	}
 }

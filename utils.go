@@ -53,7 +53,7 @@ func TraverseDirectory(root string, gitIgnore *ignore.GitIgnore) map[string]stri
 		if info.IsDir() {
 			relativePath += string(filepath.Separator)
 		}
-		if gitIgnore.MatchesPath(strings.Replace(relativePath, string(filepath.Separator), "/", -1)) {
+		if gitIgnore.MatchesPath(relativePath) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
