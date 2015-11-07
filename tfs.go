@@ -64,7 +64,7 @@ func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistor
 	if err != nil {
 		log.Println(err)
 	} else {
-		history = parseHistory(ansi2utf8(output), count)
+		history = parseHistory(repo.workfold, ansi2utf8(output), count)
 	}
 	return history
 }

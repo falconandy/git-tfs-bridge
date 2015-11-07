@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"bufio"
 	"fmt"
+	"path/filepath"
 )
 
 type TfsHistoryItem struct {
@@ -35,6 +36,15 @@ func (item *TfsHistoryItem) String() string {
 	return fmt.Sprintf("CS%d %v %s\n%s\n%s\n", item.changeset, item.date, item.author, item.comment, strings.Join(item.affectedPaths, "\n"))
 }
 
+func (item *TfsHistoryItem) IsAffected(path string) bool {
+	for _, affectedPath := range item.affectedPaths {
+		if strings.Contains(affectedPath, path) {
+			return true
+		}
+	}
+	return false
+}
+
 func (item *TfsHistoryItem) GetChangeset() int {
 	return item.changeset
 }
@@ -51,7 +61,8 @@ func (item *TfsHistoryItem) GetDate() time.Time {
 	return item.date
 }
 
-func parseHistory(history string, count int) []*TfsHistoryItem {
+func parseHistory(workfold string, history string, count int) []*TfsHistoryItem {
+	workfold += `/`
 	const historyDelimiter string = "------------------------------"
 	var changeset int
 	var author string
@@ -99,7 +110,16 @@ func parseHistory(history string, count int) []*TfsHistoryItem {
 				line = strings.TrimPrefix(line, "  ")
 				sepIndex := strings.Index(line, " $")
 				if sepIndex >= 0 {
-					affectedPaths = append(affectedPaths, line[sepIndex+1:len(line)])
+					affectedPath := line[sepIndex+1:len(line)]
+					if strings.HasPrefix(affectedPath, workfold) {
+						affectedPath = strings.TrimPrefix(affectedPath, workfold)
+						affectedPath = strings.Replace(affectedPath, "/", string(filepath.Separator), -1)
+						sepIndex = strings.Index(affectedPath, ";")
+						if sepIndex >= 0 {
+							affectedPath = affectedPath[:sepIndex]
+						}
+						affectedPaths = append(affectedPaths, affectedPath)
+					}
 				}
 			}
 		}

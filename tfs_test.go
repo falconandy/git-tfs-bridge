@@ -31,13 +31,13 @@ func TestTraverseDirectory(t *testing.T) {
 	if err != nil {
 		log.Println(err)
 	} else {
-		bridge.TraverseDirectory(`D:\Projects\_sun\Main\`, gitIgnore)
+		bridge.TraverseDirectory(`D:\Projects\_sun\Main\`, gitIgnore, nil)
 	}
 }
 
 func TestCompareDirectory(t *testing.T) {
 	gitIgnore, _ := ignore.CompileIgnoreFile(`D:\Projects\_sun\Main\.gitignore`)
-	leftOnly, rightOnly, diffs := bridge.CompareDirectories(`D:\Projects\_sun\Main\Common`, `D:\Projects\Sungero\Main\Common`, gitIgnore)
+	leftOnly, rightOnly, diffs := bridge.CompareDirectories(`D:\Projects\_sun\Main\Common`, `D:\Projects\Sungero\Main\Common`, gitIgnore, nil)
 	log.Println(leftOnly)
 	log.Println(rightOnly)
 	log.Println(diffs)
@@ -52,7 +52,7 @@ func TestToGit(t *testing.T) {
 	for _, historyItem := range history {
 		log.Println(historyItem.GetChangeset())
 		tfs.Update(historyItem.GetChangeset())
-		leftOnly, rightOnly, diffs := bridge.CompareDirectories(`D:\Projects\_sun\Main\Kernel`, `D:\Projects\Sungero\Main\Kernel`, gitIgnore)
+		leftOnly, rightOnly, diffs := bridge.CompareDirectories(`D:\Projects\_sun\Main\Kernel`, `D:\Projects\Sungero\Main\Kernel`, gitIgnore, historyItem.IsAffected)
 		if len(leftOnly) + len(rightOnly) + len(diffs) == 0 {
 			continue
 		}

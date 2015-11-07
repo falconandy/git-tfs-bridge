@@ -37,7 +37,7 @@ func parseMaybeRussianDate(layout string, value string, location *time.Location)
 	return time.ParseInLocation(layout, value, location)
 }
 
-func TraverseDirectory(root string, gitIgnore *ignore.GitIgnore) map[string]string {
+func TraverseDirectory(root string, gitIgnore *ignore.GitIgnore, checkAffected func(string) bool) map[string]string {
 	traverseInfo := make(map[string]string)
 	filepath.Walk(root, func (path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -50,7 +50,7 @@ func TraverseDirectory(root string, gitIgnore *ignore.GitIgnore) map[string]stri
 			return nil
 		}
 		relativePath := strings.TrimLeft(strings.TrimPrefix(path, root), string(filepath.Separator))
-		if info.IsDir() {
+		if info.IsDir() && relativePath != "" {
 			relativePath += string(filepath.Separator)
 		}
 		if gitIgnore.MatchesPath(relativePath) {
@@ -58,6 +58,14 @@ func TraverseDirectory(root string, gitIgnore *ignore.GitIgnore) map[string]stri
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		if checkAffected != nil {
+			if !checkAffected(relativePath) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 		}
 		if !info.IsDir() {
 			content, err := ioutil.ReadFile(path)
@@ -72,9 +80,9 @@ func TraverseDirectory(root string, gitIgnore *ignore.GitIgnore) map[string]stri
 	return traverseInfo
 }
 
-func CompareDirectories(leftPath string, rightPath string, gitIgnore *ignore.GitIgnore) (leftOnly map[string]struct{}, rightOnly map[string]struct{}, diffs map[string]struct{}) {
-	left := TraverseDirectory(leftPath, gitIgnore)
-	right := TraverseDirectory(rightPath, gitIgnore)
+func CompareDirectories(leftPath string, rightPath string, gitIgnore *ignore.GitIgnore, checkAffected func(string) bool) (leftOnly map[string]struct{}, rightOnly map[string]struct{}, diffs map[string]struct{}) {
+	left := TraverseDirectory(leftPath, gitIgnore, checkAffected)
+	right := TraverseDirectory(rightPath, gitIgnore, checkAffected)
 	leftOnly = make(map[string]struct{})
 	rightOnly = make(map[string]struct{})
 	diffs = make(map[string]struct{})
