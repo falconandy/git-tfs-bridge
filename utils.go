@@ -26,7 +26,7 @@ var russian2englishMonths = map[string]string {
 	"декабря": "December",
 }
 
-func parseMaybeRussianDate(layout string, value string) (time.Time, error) {
+func parseMaybeRussianDate(layout string, value string, location *time.Location) (time.Time, error) {
 	value = strings.Replace(value, " г.", "", 1)
 	for rus, eng := range russian2englishMonths {
 		if strings.Contains(value, rus) {
@@ -34,7 +34,7 @@ func parseMaybeRussianDate(layout string, value string) (time.Time, error) {
 			break
 		}
 	}
-	return time.Parse(layout, value)
+	return time.ParseInLocation(layout, value, location)
 }
 
 func TraverseDirectory(root string, gitIgnore *ignore.GitIgnore) map[string]string {

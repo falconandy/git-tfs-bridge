@@ -5,6 +5,12 @@ import (
 	bridge "github.com/falconandy/git-tfs-bridge"
 	"log"
 	"github.com/sabhiram/go-git-ignore"
+	"sort"
+	"io/ioutil"
+	"path/filepath"
+	"strings"
+	"fmt"
+	"os"
 )
 
 func TestHistory(t *testing.T) {
@@ -34,24 +40,51 @@ func TestCompareDirectory(t *testing.T) {
 	log.Println(leftOnly)
 	log.Println(rightOnly)
 	log.Println(diffs)
-	leftOnly, rightOnly, diffs = bridge.CompareDirectories(`D:\Projects\_sun\Main\Kernel`, `D:\Projects\Sungero\Main\Kernel`, gitIgnore)
-	log.Println(leftOnly)
-	log.Println(rightOnly)
-	log.Println(diffs)
-	leftOnly, rightOnly, diffs = bridge.CompareDirectories(`D:\Projects\_sun\Main\Content`, `D:\Projects\Sungero\Main\Content`, gitIgnore)
-	log.Println(leftOnly)
-	log.Println(rightOnly)
-	log.Println(diffs)
-	leftOnly, rightOnly, diffs = bridge.CompareDirectories(`D:\Projects\_sun\Main\Report`, `D:\Projects\Sungero\Main\Report`, gitIgnore)
-	log.Println(leftOnly)
-	log.Println(rightOnly)
-	log.Println(diffs)
-	leftOnly, rightOnly, diffs = bridge.CompareDirectories(`D:\Projects\_sun\Main\Workflow`, `D:\Projects\Sungero\Main\Workflow`, gitIgnore)
-	log.Println(leftOnly)
-	log.Println(rightOnly)
-	log.Println(diffs)
-	leftOnly, rightOnly, diffs = bridge.CompareDirectories(`D:\Projects\_sun\Main\SDS`, `D:\Projects\Sungero\Main\SDS`, gitIgnore)
-	log.Println(leftOnly)
-	log.Println(rightOnly)
-	log.Println(diffs)
+}
+
+func TestToGit(t *testing.T) {
+	tfs := bridge.OpenTfsRepository(`D:\Projects\Sungero\Main\Common`)
+	git, _ := bridge.OpenGitRepository(`D:\Projects\_sun\Main`)
+	gitIgnore, _ := ignore.CompileIgnoreFile(`D:\Projects\_sun\Main\.gitignore`)
+	history := bridge.TfsHistory(tfs.GetHistoryAfter(98866))
+	sort.Sort(history)
+	for _, historyItem := range history {
+		log.Println(historyItem.GetChangeset())
+		tfs.Update(historyItem.GetChangeset())
+		leftOnly, rightOnly, diffs := bridge.CompareDirectories(`D:\Projects\_sun\Main\Common`, `D:\Projects\Sungero\Main\Common`, gitIgnore)
+		if len(leftOnly) + len(rightOnly) + len(diffs) == 0 {
+			continue
+		}
+		for path := range leftOnly {
+			os.Remove(filepath.Join(`D:\Projects\_sun\Main\Common`, path))
+		}
+		for path := range rightOnly {
+			content, err := ioutil.ReadFile(filepath.Join(`D:\Projects\Sungero\Main\Common`, path))
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			err = ioutil.WriteFile(filepath.Join(`D:\Projects\_sun\Main\Common`, path), content, 0666)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+		}
+		for path := range diffs {
+			content, err := ioutil.ReadFile(filepath.Join(`D:\Projects\Sungero\Main\Common`, path))
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			err = ioutil.WriteFile(filepath.Join(`D:\Projects\_sun\Main\Common`, path), content, 0666)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+		}
+		git.StageAll()
+		comment, author, date := historyItem.GetComment(), historyItem.GetAuthor(), historyItem.GetDate()
+		author = strings.TrimPrefix(author, `NT_WORK\`)
+		git.Commit(comment, fmt.Sprintf("%s <%s@directum.ru>", author, author), date)
+	}
 }

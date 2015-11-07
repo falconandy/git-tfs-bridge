@@ -9,6 +9,7 @@ import (
 	"golang.org/x/text/transform"
 	"golang.org/x/text/encoding/charmap"
 	"log"
+	"sort"
 )
 
 type TfsRepository struct {
@@ -45,8 +46,8 @@ func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistor
 	return history
 }
 
-func (repo *TfsRepository) GetHistoryAfter(changeset int) []*TfsHistoryItem {
-	var result []*TfsHistoryItem
+func (repo *TfsRepository) GetHistoryAfter(changeset int) TfsHistory {
+	var result TfsHistory
 	fromChangeset := 0
 	for {
 		history := repo.GetHistory(fromChangeset, 100)
@@ -69,6 +70,7 @@ func (repo *TfsRepository) GetHistoryAfter(changeset int) []*TfsHistoryItem {
 			break
 		}
 	}
+	sort.Sort(result)
 	return result
 }
 

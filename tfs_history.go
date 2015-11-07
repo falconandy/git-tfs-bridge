@@ -16,8 +16,38 @@ type TfsHistoryItem struct {
 	date time.Time
 }
 
-func (item TfsHistoryItem) String() string {
+type TfsHistory []*TfsHistoryItem
+
+func (history TfsHistory) Len() int {
+	return len(history)
+}
+
+func (history TfsHistory) Less(i, j int) bool {
+	return history[i].changeset < history[j].changeset
+}
+
+func (history TfsHistory) Swap(i, j int) {
+	history[i], history[j] = history[j], history[i]
+}
+
+func (item *TfsHistoryItem) String() string {
 	return fmt.Sprintf("CS%d %v %s\n%s", item.changeset, item.date, item.author, item.comment)
+}
+
+func (item *TfsHistoryItem) GetChangeset() int {
+	return item.changeset
+}
+
+func (item *TfsHistoryItem) GetComment() string {
+	return item.comment
+}
+
+func (item *TfsHistoryItem) GetAuthor() string {
+	return item.author
+}
+
+func (item *TfsHistoryItem) GetDate() time.Time {
+	return item.date
 }
 
 func parseHistory(history string, count int) []*TfsHistoryItem {
@@ -26,6 +56,7 @@ func parseHistory(history string, count int) []*TfsHistoryItem {
 	var author string
 	var comment string
 	var date time.Time
+	location, _ := time.LoadLocation("Local")
 	result := make([]*TfsHistoryItem, 0, count)
 	scanner := bufio.NewScanner(strings.NewReader(history))
 	for scanner.Scan() {
@@ -44,7 +75,7 @@ func parseHistory(history string, count int) []*TfsHistoryItem {
 		}
 		if strings.HasPrefix(line, "Date:") && date.IsZero() {
 			dateStr := strings.TrimSpace(strings.TrimPrefix(line, "Date:"))
-			date, _ = parseMaybeRussianDate("2 January 2006 15:04:05", dateStr)
+			date, _ = parseMaybeRussianDate("2 January 2006 15:04:05", dateStr, location)
 		}
 		if line == "Comment:" && comment == "" {
 			var buffer bytes.Buffer
