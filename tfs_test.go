@@ -15,6 +15,7 @@ import (
 
 func TestHistory(t *testing.T) {
 	tfs := bridge.OpenTfsRepository(`D:\Projects\Sungero\Main\Common`)
+	log.Println(tfs)
 	log.Println(tfs.GetHistoryAfter(98000))
 	log.Println(tfs.GetHistory(50000, 100))
 }

@@ -14,6 +14,7 @@ type TfsHistoryItem struct {
 	author string
 	comment string
 	date time.Time
+	affectedPaths []string
 }
 
 type TfsHistory []*TfsHistoryItem
@@ -31,7 +32,7 @@ func (history TfsHistory) Swap(i, j int) {
 }
 
 func (item *TfsHistoryItem) String() string {
-	return fmt.Sprintf("CS%d %v %s\n%s", item.changeset, item.date, item.author, item.comment)
+	return fmt.Sprintf("CS%d %v %s\n%s\n%s\n", item.changeset, item.date, item.author, item.comment, strings.Join(item.affectedPaths, "\n"))
 }
 
 func (item *TfsHistoryItem) GetChangeset() int {
@@ -56,6 +57,7 @@ func parseHistory(history string, count int) []*TfsHistoryItem {
 	var author string
 	var comment string
 	var date time.Time
+	affectedPaths := make([]string, 0, 20)
 	location, _ := time.LoadLocation("Local")
 	result := make([]*TfsHistoryItem, 0, count)
 	scanner := bufio.NewScanner(strings.NewReader(history))
@@ -63,9 +65,9 @@ func parseHistory(history string, count int) []*TfsHistoryItem {
 		line := scanner.Text()
 		if strings.HasPrefix(line, historyDelimiter) && strings.HasSuffix(line, historyDelimiter) {
 			if changeset != 0 {
-				result = append(result, &TfsHistoryItem{changeset, author, comment, date})
+				result = append(result, &TfsHistoryItem{changeset, author, comment, date, affectedPaths})
 			}
-			changeset, author, comment, date = 0, "", "", time.Time{}
+			changeset, author, comment, date, affectedPaths = 0, "", "", time.Time{}, make([]string, 0, 20)
 		}
 		if strings.HasPrefix(line, "Changeset:") && changeset == 0 {
 			changeset, _ = strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "Changeset:")))
@@ -84,10 +86,22 @@ func parseHistory(history string, count int) []*TfsHistoryItem {
 				if line == "Items:" {
 					break
 				}
+				line = strings.TrimPrefix(line, "  ")
 				buffer.WriteString(line)
 				buffer.WriteString("\r\n")
 			}
 			comment = strings.TrimSpace(buffer.String())
+			for scanner.Scan() {
+				line := scanner.Text()
+				if line == "" {
+					break
+				}
+				line = strings.TrimPrefix(line, "  ")
+				sepIndex := strings.Index(line, " $")
+				if sepIndex >= 0 {
+					affectedPaths = append(affectedPaths, line[sepIndex+1:len(line)])
+				}
+			}
 		}
 	}
 	return result

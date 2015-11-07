@@ -10,14 +10,37 @@ import (
 	"golang.org/x/text/encoding/charmap"
 	"log"
 	"sort"
+	"bufio"
+	"strings"
 )
 
 type TfsRepository struct {
 	path string
+	workfold string
 }
 
 func OpenTfsRepository(path string) *TfsRepository {
-	return &TfsRepository{path:path}
+	workfold := getWorkfold(path)
+	return &TfsRepository{path:path, workfold:workfold}
+}
+
+func getWorkfold(path string) string {
+	output, err := execTfCommand("workfold", path)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	workfold := ""
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, " $") {
+			sepIndex := strings.Index(line, ": ")
+			workfold = strings.TrimSpace(line[:sepIndex])
+			break
+		}
+	}
+	return workfold
 }
 
 func (repo *TfsRepository) Update(changeset int) {
@@ -25,7 +48,7 @@ func (repo *TfsRepository) Update(changeset int) {
 	if changeset > 0 {
 		commandArgs = append(commandArgs, fmt.Sprintf("/version:C%d", changeset))
 	}
-	_, err := repo.execCommand(commandArgs...)
+	_, err := execTfCommand(commandArgs...)
 	if err != nil {
 		log.Println(err)
 	}
@@ -37,7 +60,7 @@ func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistor
 	if fromChangeset > 0 {
 		commandArgs = append(commandArgs, fmt.Sprintf("/version:C%d", fromChangeset))
 	}
-	output, err := repo.execCommand(commandArgs...)
+	output, err := execTfCommand(commandArgs...)
 	if err != nil {
 		log.Println(err)
 	} else {
@@ -74,7 +97,7 @@ func (repo *TfsRepository) GetHistoryAfter(changeset int) TfsHistory {
 	return result
 }
 
-func (repo *TfsRepository) execCommand(args ...string) ([]byte, error) {
+func execTfCommand(args ...string) ([]byte, error) {
 	cmd := exec.Command("tf", args...)
 	cmd.Stderr = os.Stderr
 	return cmd.Output()
