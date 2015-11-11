@@ -16,20 +16,7 @@ type TfsHistoryItem struct {
 	comment string
 	date time.Time
 	affectedPaths []string
-}
-
-type TfsHistory []*TfsHistoryItem
-
-func (history TfsHistory) Len() int {
-	return len(history)
-}
-
-func (history TfsHistory) Less(i, j int) bool {
-	return history[i].changeset < history[j].changeset
-}
-
-func (history TfsHistory) Swap(i, j int) {
-	history[i], history[j] = history[j], history[i]
+	repo *TfsRepository
 }
 
 func (item *TfsHistoryItem) String() string {
@@ -61,8 +48,12 @@ func (item *TfsHistoryItem) GetDate() time.Time {
 	return item.date
 }
 
-func parseHistory(workfold string, history string, count int) []*TfsHistoryItem {
-	workfold += `/`
+func (item *TfsHistoryItem) GetRepo() *TfsRepository {
+	return item.repo
+}
+
+func parseHistory(repo *TfsRepository, history string, count int) []*TfsHistoryItem {
+	workfold := repo.workfold + `/`
 	const historyDelimiter string = "------------------------------"
 	var changeset int
 	var author string
@@ -76,7 +67,7 @@ func parseHistory(workfold string, history string, count int) []*TfsHistoryItem 
 		line := scanner.Text()
 		if strings.HasPrefix(line, historyDelimiter) && strings.HasSuffix(line, historyDelimiter) {
 			if changeset != 0 {
-				result = append(result, &TfsHistoryItem{changeset, author, comment, date, affectedPaths})
+				result = append(result, &TfsHistoryItem{changeset, author, comment, date, affectedPaths, repo})
 			}
 			changeset, author, comment, date, affectedPaths = 0, "", "", time.Time{}, make([]string, 0, 20)
 		}

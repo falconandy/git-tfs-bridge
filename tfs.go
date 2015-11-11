@@ -9,7 +9,6 @@ import (
 	"golang.org/x/text/transform"
 	"golang.org/x/text/encoding/charmap"
 	"log"
-	"sort"
 	"bufio"
 	"strings"
 )
@@ -17,6 +16,10 @@ import (
 type TfsRepository struct {
 	path string
 	workfold string
+}
+
+func (repo *TfsRepository) GetPath() string {
+	return repo.path
 }
 
 func OpenTfsRepository(path string) *TfsRepository {
@@ -64,13 +67,13 @@ func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistor
 	if err != nil {
 		log.Println(err)
 	} else {
-		history = parseHistory(repo.workfold, ansi2utf8(output), count)
+		history = parseHistory(repo, ansi2utf8(output), count)
 	}
 	return history
 }
 
-func (repo *TfsRepository) GetHistoryAfter(changeset int) TfsHistory {
-	var result TfsHistory
+func (repo *TfsRepository) GetHistoryAfter(changeset int) []*TfsHistoryItem {
+	var result []*TfsHistoryItem
 	fromChangeset := 0
 	for {
 		history := repo.GetHistory(fromChangeset, 100)
@@ -93,7 +96,6 @@ func (repo *TfsRepository) GetHistoryAfter(changeset int) TfsHistory {
 			break
 		}
 	}
-	sort.Sort(result)
 	return result
 }
 
