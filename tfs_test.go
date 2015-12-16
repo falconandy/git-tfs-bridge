@@ -14,10 +14,11 @@ import (
 )
 
 func TestHistory(t *testing.T) {
-	tfs := bridge.OpenTfsRepository(`D:\Projects\Sungero\Main\Common`)
+	tfs := bridge.OpenTfsRepository(`D:\Projects\Sungero\Icons\Kernel`)
 	log.Println(tfs)
-	log.Println(tfs.GetHistoryAfter(98000))
-	log.Println(tfs.GetHistory(50000, 100))
+	//log.Println(tfs.GetHistoryAfter(100914, false))
+	log.Println(tfs.GetHistoryAfter(100914, true))
+	//log.Println(tfs.GetHistory(50000, 100))
 }
 
 func TestUpdate(t *testing.T) {
@@ -44,10 +45,11 @@ func TestCompareDirectory(t *testing.T) {
 }
 
 func TestToGit(t *testing.T) {
-	start_changeset := 98866
-	tfs_root_folder := `D:\Projects\Sungero\Main\`
-	git_root_folder := `D:\Projects\_sun\Main`
-	tfs_subfolders := []string { "Common", "Kernel", "Content", "Report", "Workflow", "SDS" }
+	start_changeset := 100914
+	need_full_init := true
+	tfs_root_folder := `D:\Projects\Sungero\Icons\`
+	git_root_folder := `D:\Projects\_sun\Icons`
+	tfs_subfolders := []string { "Common", "Kernel" }
 	tfs_reps := make([]*bridge.TfsRepository, len(tfs_subfolders))
 	for i, tfs_subfolder := range tfs_subfolders {
 		tfs_reps[i] = bridge.OpenTfsRepository(filepath.Join(tfs_root_folder, tfs_subfolder))
@@ -56,7 +58,7 @@ func TestToGit(t *testing.T) {
 	gitIgnore, _ := ignore.CompileIgnoreFile(filepath.Join(git_root_folder, ".gitignore"))
 	all_history := make(map[int][]*bridge.TfsHistoryItem)
 	for _, tfs := range tfs_reps {
-		history := tfs.GetHistoryAfter(start_changeset)
+		history := tfs.GetHistoryAfter(start_changeset, need_full_init)
 		for _, item := range history {
 			changeset := item.GetChangeset()
 			if _, ok := all_history[changeset]; !ok {
@@ -70,14 +72,18 @@ func TestToGit(t *testing.T) {
 		all_changesets = append(all_changesets, changeset)
 	}
 	sort.Ints(all_changesets)
-	for _, changeset := range all_changesets {
+	for i, changeset := range all_changesets {
 		log.Println(changeset)
 		for _, historyItem := range all_history[changeset] {
 			repo := historyItem.GetRepo()
 			repo.Update(changeset)
 			tfsSubfolder := filepath.Join(tfs_root_folder, filepath.Base(repo.GetPath()))
 			gitSubfolder := filepath.Join(git_root_folder, filepath.Base(repo.GetPath()))
-			leftOnly, rightOnly, diffs := bridge.CompareDirectories(gitSubfolder, tfsSubfolder, gitIgnore, historyItem.IsAffected)
+			var checkAffected func(string) bool
+			if i > 0 || !need_full_init {
+				checkAffected = historyItem.IsAffected
+			}
+			leftOnly, rightOnly, diffs := bridge.CompareDirectories(gitSubfolder, tfsSubfolder, gitIgnore, checkAffected)
 			if len(leftOnly) + len(rightOnly) + len(diffs) == 0 {
 				continue
 			}
@@ -90,7 +96,9 @@ func TestToGit(t *testing.T) {
 					log.Println(err)
 					continue
 				}
-				err = ioutil.WriteFile(filepath.Join(gitSubfolder, path), content, 0666)
+				path := filepath.Join(gitSubfolder, path)
+				os.MkdirAll(filepath.Dir(path), 0777)
+				err = ioutil.WriteFile(path, content, 0666)
 				if err != nil {
 					log.Println(err)
 					continue

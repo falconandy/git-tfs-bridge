@@ -115,5 +115,8 @@ func parseHistory(repo *TfsRepository, history string, count int) []*TfsHistoryI
 			}
 		}
 	}
+	if changeset != 0 {
+		result = append(result, &TfsHistoryItem{changeset, author, comment, date, affectedPaths, repo})
+	}
 	return result
 }

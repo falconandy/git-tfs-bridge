@@ -72,22 +72,22 @@ func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistor
 	return history
 }
 
-func (repo *TfsRepository) GetHistoryAfter(changeset int) []*TfsHistoryItem {
+func (repo *TfsRepository) GetHistoryAfter(changeset int, includeStartChangeset bool) []*TfsHistoryItem {
 	var result []*TfsHistoryItem
 	fromChangeset := 0
 	for {
 		history := repo.GetHistory(fromChangeset, 100)
 		if len(history) == 0 {
 			break
-		} else if history[0].changeset <= changeset {
+		} else if history[0].changeset < changeset || (!includeStartChangeset && history[0].changeset == changeset) {
 			break
-		} else if history[len(history)-1].changeset > changeset {
+		} else if history[len(history)-1].changeset > changeset || (includeStartChangeset && history[len(history)-1].changeset == changeset) {
 			result = append(result, history...)
 			fromChangeset = history[len(history)-1].changeset - 1
 			continue
 		} else {
 			for _, histItem := range history {
-				if histItem.changeset > changeset {
+				if histItem.changeset > changeset || (includeStartChangeset && histItem.changeset == changeset) {
 					result = append(result, histItem)
 				} else {
 					break
