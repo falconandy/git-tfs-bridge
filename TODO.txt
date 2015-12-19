@@ -1,0 +1,7 @@
+check tfs clean
+check git clean
+special git branch to import
+remember last changeset
+error handling
+ignore AutoScripts
+need clean tfs directory

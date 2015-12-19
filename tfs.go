@@ -22,16 +22,18 @@ func (repo *TfsRepository) GetPath() string {
 	return repo.path
 }
 
-func OpenTfsRepository(path string) *TfsRepository {
-	workfold := getWorkfold(path)
-	return &TfsRepository{path:path, workfold:workfold}
+func OpenTfsRepository(path string) (*TfsRepository, error) {
+	workfold, err := getWorkfold(path)
+	if err != nil {
+		return nil, err
+	}
+	return &TfsRepository{path:path, workfold:workfold}, nil
 }
 
-func getWorkfold(path string) string {
+func getWorkfold(path string) (string, error) {
 	output, err := execTfCommand("workfold", path)
 	if err != nil {
-		log.Println(err)
-		return ""
+		return "", err
 	}
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	workfold := ""
@@ -43,7 +45,7 @@ func getWorkfold(path string) string {
 			break
 		}
 	}
-	return workfold
+	return workfold, nil
 }
 
 func (repo *TfsRepository) Update(changeset int) {
@@ -72,22 +74,22 @@ func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistor
 	return history
 }
 
-func (repo *TfsRepository) GetHistoryAfter(changeset int, includeStartChangeset bool) []*TfsHistoryItem {
+func (repo *TfsRepository) GetHistoryFrom(startChangeset int, includeStartChangeset bool) []*TfsHistoryItem {
 	var result []*TfsHistoryItem
 	fromChangeset := 0
 	for {
 		history := repo.GetHistory(fromChangeset, 100)
 		if len(history) == 0 {
 			break
-		} else if history[0].changeset < changeset || (!includeStartChangeset && history[0].changeset == changeset) {
+		} else if history[0].changeset < startChangeset || (!includeStartChangeset && history[0].changeset == startChangeset) {
 			break
-		} else if history[len(history)-1].changeset > changeset || (includeStartChangeset && history[len(history)-1].changeset == changeset) {
+		} else if history[len(history)-1].changeset > startChangeset || (includeStartChangeset && history[len(history)-1].changeset == startChangeset) {
 			result = append(result, history...)
 			fromChangeset = history[len(history)-1].changeset - 1
 			continue
 		} else {
 			for _, histItem := range history {
-				if histItem.changeset > changeset || (includeStartChangeset && histItem.changeset == changeset) {
+				if histItem.changeset > startChangeset || (includeStartChangeset && histItem.changeset == startChangeset) {
 					result = append(result, histItem)
 				} else {
 					break

@@ -5,24 +5,18 @@ import (
 	bridge "github.com/falconandy/git-tfs-bridge"
 	"log"
 	"github.com/sabhiram/go-git-ignore"
-	"sort"
-	"io/ioutil"
-	"path/filepath"
-	"strings"
-	"fmt"
-	"os"
 )
 
 func TestHistory(t *testing.T) {
-	tfs := bridge.OpenTfsRepository(`D:\Projects\Sungero\Icons\Kernel`)
+	tfs, _ := bridge.OpenTfsRepository(`D:\Projects\Sungero\Icons\Kernel`)
 	log.Println(tfs)
 	//log.Println(tfs.GetHistoryAfter(100914, false))
-	log.Println(tfs.GetHistoryAfter(100914, true))
+	log.Println(tfs.GetHistoryFrom(100914, true))
 	//log.Println(tfs.GetHistory(50000, 100))
 }
 
 func TestUpdate(t *testing.T) {
-	tfs := bridge.OpenTfsRepository(`D:\Projects\Sungero\Main\Common`)
+	tfs, _ := bridge.OpenTfsRepository(`D:\Projects\Sungero\Main\Common`)
 	tfs.Update(95000)
 	tfs.Update(0)
 }
@@ -44,87 +38,13 @@ func TestCompareDirectory(t *testing.T) {
 	log.Println(diffs)
 }
 
+func TestGetTfsRepositories(t *testing.T) {
+	tfsRepos, _ := bridge.GetTfsRepositories(`D:\Projects\Sungero\Main`)
+	for _, repo := range tfsRepos {
+		log.Println(repo.GetPath())
+	}
+}
+
 func TestToGit(t *testing.T) {
-	start_changeset := 100914
-	need_full_init := true
-	tfs_root_folder := `D:\Projects\Sungero\Icons\`
-	git_root_folder := `D:\Projects\_sun\Icons`
-	tfs_subfolders := []string { "Common", "Kernel" }
-	tfs_reps := make([]*bridge.TfsRepository, len(tfs_subfolders))
-	for i, tfs_subfolder := range tfs_subfolders {
-		tfs_reps[i] = bridge.OpenTfsRepository(filepath.Join(tfs_root_folder, tfs_subfolder))
-	}
-	git, _ := bridge.OpenGitRepository(git_root_folder)
-	gitIgnore, _ := ignore.CompileIgnoreFile(filepath.Join(git_root_folder, ".gitignore"))
-	all_history := make(map[int][]*bridge.TfsHistoryItem)
-	for _, tfs := range tfs_reps {
-		history := tfs.GetHistoryAfter(start_changeset, need_full_init)
-		for _, item := range history {
-			changeset := item.GetChangeset()
-			if _, ok := all_history[changeset]; !ok {
-				all_history[changeset] = make([]*bridge.TfsHistoryItem, 0, len(tfs_subfolders))
-			}
-			all_history[changeset] = append(all_history[changeset], item)
-		}
-	}
-	all_changesets := make([]int, 0, len(all_history))
-	for changeset := range all_history {
-		all_changesets = append(all_changesets, changeset)
-	}
-	sort.Ints(all_changesets)
-	for i, changeset := range all_changesets {
-		log.Println(changeset)
-		for _, historyItem := range all_history[changeset] {
-			repo := historyItem.GetRepo()
-			repo.Update(changeset)
-			tfsSubfolder := filepath.Join(tfs_root_folder, filepath.Base(repo.GetPath()))
-			gitSubfolder := filepath.Join(git_root_folder, filepath.Base(repo.GetPath()))
-			var checkAffected func(string) bool
-			if i > 0 || !need_full_init {
-				checkAffected = historyItem.IsAffected
-			}
-			leftOnly, rightOnly, diffs := bridge.CompareDirectories(gitSubfolder, tfsSubfolder, gitIgnore, checkAffected)
-			if len(leftOnly) + len(rightOnly) + len(diffs) == 0 {
-				continue
-			}
-			for path := range leftOnly {
-				os.Remove(filepath.Join(gitSubfolder, path))
-			}
-			for path := range rightOnly {
-				content, err := ioutil.ReadFile(filepath.Join(tfsSubfolder, path))
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				path := filepath.Join(gitSubfolder, path)
-				os.MkdirAll(filepath.Dir(path), 0777)
-				err = ioutil.WriteFile(path, content, 0666)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-			}
-			for path := range diffs {
-				content, err := ioutil.ReadFile(filepath.Join(tfsSubfolder, path))
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				err = ioutil.WriteFile(filepath.Join(gitSubfolder, path), content, 0666)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-			}
-		}
-		git.StageAll()
-		historyItem := all_history[changeset][0]
-		comment, author, date := historyItem.GetComment(), historyItem.GetAuthor(), historyItem.GetDate()
-		author = strings.TrimPrefix(author, `NT_WORK\`)
-		if comment != "" {
-			comment += "\r\n\r\n"
-		}
-		comment += fmt.Sprintf("git-tfs-bridge: imported from TFS %d", historyItem.GetChangeset())
-		git.Commit(comment, fmt.Sprintf("%s <%s@directum.ru>", author, author), date)
-	}
+	bridge.ImportFromTfs(`D:\Projects\_sun\Icons`, `D:\Projects\Sungero\Icons\`, 100914)
 }
