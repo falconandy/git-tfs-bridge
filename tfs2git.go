@@ -21,15 +21,28 @@ func InitFromTfs(gitRoot string, tfsRoot string, initChangeset int) {
 
 func importFromTfs(gitRoot string, tfsRoot string, startChangeset int, includeStartChangeset bool) {
 	tfsRepos, _ := GetTfsRepositories(tfsRoot)
+	for _, tfsRepo := range tfsRepos {
+		if !tfsRepo.IsClean() {
+			log.Printf("Tfs repo \"%s\" is dirty. Clean it first.", tfsRepo.GetPath())
+			return
+		}
+	}
 	gitRepo, _ := OpenGitRepository(gitRoot)
+	if !gitRepo.IsClean() {
+		log.Printf("Git repo \"%s\" is dirty. Clean it first.", gitRepo.path)
+		return
+	}
 	gitIgnore, _ := ignore.CompileIgnoreFile(filepath.Join(gitRoot, ".gitignore"))
 	joinedHistory, changesets := getJoinedHistory(tfsRepos, startChangeset, includeStartChangeset)
 	for i, changeset := range changesets {
-		importTfsChangeset(tfsRoot, gitRepo, changeset, joinedHistory, gitIgnore, includeStartChangeset && i == 0)
+		if !importTfsChangeset(tfsRoot, gitRepo, changeset, joinedHistory, gitIgnore, includeStartChangeset && i == 0) {
+			log.Println("Something is wrong!!! Git repo \"%s\" shold be clean after commit.")
+			return
+		}
 	}
 }
 
-func importTfsChangeset(tfsRoot string, gitRepo *GitRepository, changeset int, joinedHistory map[int][]*TfsHistoryItem, gitIgnore *ignore.GitIgnore, init bool) {
+func importTfsChangeset(tfsRoot string, gitRepo *GitRepository, changeset int, joinedHistory map[int][]*TfsHistoryItem, gitIgnore *ignore.GitIgnore, init bool) bool {
 	log.Println(changeset)
 	for _, historyItem := range joinedHistory[changeset] {
 		repo := historyItem.GetRepo()
@@ -83,6 +96,8 @@ func importTfsChangeset(tfsRoot string, gitRepo *GitRepository, changeset int, j
 	}
 	comment += fmt.Sprintf("git-tfs-bridge: imported from TFS %d", historyItem.GetChangeset())
 	gitRepo.Commit(comment, fmt.Sprintf("%s <%s@directum.ru>", author, author), date)
+
+	return gitRepo.IsClean()
 }
 
 func GetTfsRepositories(tfsRoot string) ([]*TfsRepository, error) {

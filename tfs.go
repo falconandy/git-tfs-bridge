@@ -59,6 +59,16 @@ func (repo *TfsRepository) Update(changeset int) {
 	}
 }
 
+func (repo *TfsRepository) IsClean() bool {
+	commandArgs := []string { "status", repo.path, "/recursive", "/format:brief" }
+	output, err := execTfCommand(commandArgs...)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+	return strings.TrimSpace(ansi2utf8(output)) == "There are no pending changes."
+}
+
 func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistoryItem {
 	var history []*TfsHistoryItem
 	commandArgs := []string { "history", repo.path, "/recursive", "/noprompt", "/format:Detailed", fmt.Sprintf("/stopafter:%d", count) }

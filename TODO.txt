@@ -1,7 +1,8 @@
-check tfs clean
-check git clean
++check tfs clean
++check git clean
 special git branch to import
-remember last changeset
+remember last changeset (take from history)
 error handling
 ignore AutoScripts
 need clean tfs directory
+configure - roots, subfolders,
