@@ -4,5 +4,6 @@ special git branch to import
 remember last changeset (take from history)
 error handling
 ignore AutoScripts
-need clean tfs directory
+need clean tfs directory (try use "tfs dir <path> /recursive /version:<version>")
 configure - roots, subfolders,
+tfs users <-> git users

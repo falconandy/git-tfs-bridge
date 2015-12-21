@@ -19,7 +19,7 @@ func InitFromTfs(gitRoot string, tfsRoot string, initChangeset int) {
 	importFromTfs(gitRoot, tfsRoot, initChangeset, true)
 }
 
-func importFromTfs(gitRoot string, tfsRoot string, startChangeset int, includeStartChangeset bool) {
+func importFromTfs(gitRoot string, tfsRoot string, startChangeset int, needInit bool) {
 	tfsRepos, _ := GetTfsRepositories(tfsRoot)
 	for _, tfsRepo := range tfsRepos {
 		if !tfsRepo.IsClean() {
@@ -33,27 +33,45 @@ func importFromTfs(gitRoot string, tfsRoot string, startChangeset int, includeSt
 		return
 	}
 	gitIgnore, _ := ignore.CompileIgnoreFile(filepath.Join(gitRoot, ".gitignore"))
-	joinedHistory, changesets := getJoinedHistory(tfsRepos, startChangeset, includeStartChangeset)
-	for i, changeset := range changesets {
-		if !importTfsChangeset(tfsRoot, gitRepo, changeset, joinedHistory, gitIgnore, includeStartChangeset && i == 0) {
+	joinedHistory, changesets := getJoinedHistory(tfsRepos, startChangeset, needInit)
+	if needInit {
+		if !initTfsChangeset(tfsRepos, gitRepo, changesets[0], joinedHistory, gitIgnore) {
+			log.Println("Something is wrong!!! Git repo \"%s\" shold be clean after commit.")
+			return
+		}
+		changesets = changesets[1:]
+	}
+	for _, changeset := range changesets {
+		if !importTfsChangeset(gitRepo, changeset, joinedHistory, gitIgnore) {
 			log.Println("Something is wrong!!! Git repo \"%s\" shold be clean after commit.")
 			return
 		}
 	}
 }
 
-func importTfsChangeset(tfsRoot string, gitRepo *GitRepository, changeset int, joinedHistory map[int][]*TfsHistoryItem, gitIgnore *ignore.GitIgnore, init bool) bool {
-	log.Println(changeset)
+func importTfsChangeset(gitRepo *GitRepository, changeset int, joinedHistory map[int][]*TfsHistoryItem, gitIgnore *ignore.GitIgnore) bool {
+	repos := make([]*TfsRepository, 0, 10)
+	checkAffected := make(map[*TfsRepository]func(string) bool)
 	for _, historyItem := range joinedHistory[changeset] {
 		repo := historyItem.GetRepo()
+		repos = append(repos, repo)
+		checkAffected[repo] = historyItem.IsAffected
+	}
+	return importTfsChangesetFiles(repos, gitRepo, changeset, gitIgnore, checkAffected, joinedHistory[changeset][0])
+}
+
+func initTfsChangeset(tfsRepos []*TfsRepository, gitRepo *GitRepository, changeset int, joinedHistory map[int][]*TfsHistoryItem, gitIgnore *ignore.GitIgnore) bool {
+	checkAffected := make(map[*TfsRepository]func(string) bool)
+	return importTfsChangesetFiles(tfsRepos, gitRepo, changeset, gitIgnore, checkAffected, joinedHistory[changeset][0])
+}
+
+func importTfsChangesetFiles(tfsRepos []*TfsRepository, gitRepo *GitRepository, changeset int, gitIgnore *ignore.GitIgnore, checkAffected map[*TfsRepository]func(string) bool, sampleHistoryItem *TfsHistoryItem) bool {
+	log.Println(changeset)
+	for _, repo := range tfsRepos {
 		repo.Update(changeset)
 		tfsSubfolder := repo.GetPath()
 		gitSubfolder := filepath.Join(gitRepo.path, filepath.Base(repo.GetPath()))
-		var checkAffected func(string) bool
-		if !init {
-			checkAffected = historyItem.IsAffected
-		}
-		leftOnly, rightOnly, diffs := CompareDirectories(gitSubfolder, tfsSubfolder, gitIgnore, checkAffected)
+		leftOnly, rightOnly, diffs := CompareDirectories(gitSubfolder, tfsSubfolder, gitIgnore, checkAffected[repo])
 		if len(leftOnly) + len(rightOnly) + len(diffs) == 0 {
 			continue
 		}
@@ -88,13 +106,12 @@ func importTfsChangeset(tfsRoot string, gitRepo *GitRepository, changeset int, j
 		}
 	}
 	gitRepo.StageAll()
-	historyItem := joinedHistory[changeset][0]
-	comment, author, date := historyItem.GetComment(), historyItem.GetAuthor(), historyItem.GetDate()
+	comment, author, date := sampleHistoryItem.GetComment(), sampleHistoryItem.GetAuthor(), sampleHistoryItem.GetDate()
 	author = strings.TrimPrefix(author, `NT_WORK\`)
 	if comment != "" {
 		comment += "\r\n\r\n"
 	}
-	comment += fmt.Sprintf("git-tfs-bridge: imported from TFS %d", historyItem.GetChangeset())
+	comment += fmt.Sprintf("git-tfs-bridge: imported from TFS %d", changeset)
 	gitRepo.Commit(comment, fmt.Sprintf("%s <%s@directum.ru>", author, author), date)
 
 	return gitRepo.IsClean()
@@ -107,7 +124,7 @@ func GetTfsRepositories(tfsRoot string) ([]*TfsRepository, error) {
 	}
 	tfsRepos := make([]*TfsRepository, 0, len(items))
 	for _, info := range items {
-		if !info.IsDir() {
+		if !info.IsDir() || info.Name() == "AutoScripts" {
 			continue
 		}
 

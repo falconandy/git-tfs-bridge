@@ -46,5 +46,5 @@ func TestGetTfsRepositories(t *testing.T) {
 }
 
 func TestToGit(t *testing.T) {
-	bridge.InitFromTfs(`D:\Projects\_sun\Icons`, `D:\Projects\Sungero\Icons\`, 100914)
+	bridge.InitFromTfs(`D:\Projects\_sun\Main`, `D:\Projects\Sungero\Main\`, 100000)
 }
