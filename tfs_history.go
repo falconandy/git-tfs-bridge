@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"path/filepath"
+	"github.com/sabhiram/go-git-ignore"
 )
 
 type TfsHistoryItem struct {
@@ -52,7 +53,7 @@ func (item *TfsHistoryItem) GetRepo() *TfsRepository {
 	return item.repo
 }
 
-func parseHistory(repo *TfsRepository, history string, count int) []*TfsHistoryItem {
+func parseHistory(repo *TfsRepository, gitIgnore *ignore.GitIgnore, history string, count int) []*TfsHistoryItem {
 	workfold := repo.workfold + `/`
 	const historyDelimiter string = "------------------------------"
 	var changeset int
@@ -109,7 +110,9 @@ func parseHistory(repo *TfsRepository, history string, count int) []*TfsHistoryI
 						if sepIndex >= 0 {
 							affectedPath = affectedPath[:sepIndex]
 						}
-						affectedPaths = append(affectedPaths, affectedPath)
+						if !gitIgnore.MatchesPath(affectedPath) {
+							affectedPaths = append(affectedPaths, affectedPath)
+						}
 					}
 				}
 			}

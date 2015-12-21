@@ -33,7 +33,7 @@ func importFromTfs(gitRoot string, tfsRoot string, startChangeset int, needInit 
 		return
 	}
 	gitIgnore, _ := ignore.CompileIgnoreFile(filepath.Join(gitRoot, ".gitignore"))
-	joinedHistory, changesets := getJoinedHistory(tfsRepos, startChangeset, needInit)
+	joinedHistory, changesets := getJoinedHistory(tfsRepos, gitIgnore, startChangeset, needInit)
 	if needInit {
 		if !initTfsChangeset(tfsRepos, gitRepo, changesets[0], joinedHistory, gitIgnore) {
 			log.Println("Something is wrong!!! Git repo \"%s\" shold be clean after commit.")
@@ -136,10 +136,10 @@ func GetTfsRepositories(tfsRoot string) ([]*TfsRepository, error) {
 	return tfsRepos, nil
 }
 
-func getJoinedHistory(tfsRepos []*TfsRepository, startChangeset int, includeStartChangeset bool) (joinedHistory map[int][]*TfsHistoryItem, orderedChangesets []int) {
+func getJoinedHistory(tfsRepos []*TfsRepository, gitIgnore *ignore.GitIgnore, startChangeset int, includeStartChangeset bool) (joinedHistory map[int][]*TfsHistoryItem, orderedChangesets []int) {
 	joinedHistory = make(map[int][]*TfsHistoryItem)
 	for _, tfs := range tfsRepos {
-		history := tfs.GetHistoryFrom(startChangeset, includeStartChangeset)
+		history := tfs.GetHistoryFrom(gitIgnore, startChangeset, includeStartChangeset)
 		for _, item := range history {
 			changeset := item.GetChangeset()
 			if _, ok := joinedHistory[changeset]; !ok {

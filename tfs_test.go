@@ -11,7 +11,7 @@ func TestHistory(t *testing.T) {
 	tfs, _ := bridge.OpenTfsRepository(`D:\Projects\Sungero\Icons\Kernel`)
 	log.Println(tfs)
 	//log.Println(tfs.GetHistoryAfter(100914, false))
-	log.Println(tfs.GetHistoryFrom(100914, true))
+	//gilog.Println(tfs.GetHistoryFrom(100914, true))
 	//log.Println(tfs.GetHistory(50000, 100))
 }
 
@@ -46,5 +46,5 @@ func TestGetTfsRepositories(t *testing.T) {
 }
 
 func TestToGit(t *testing.T) {
-	bridge.InitFromTfs(`D:\Projects\_sun\Main`, `D:\Projects\Sungero\Main\`, 100000)
+	bridge.InitFromTfs(`D:\Projects\_sun\Main`, `D:\Projects\Sungero\Main\`, 101000)
 }

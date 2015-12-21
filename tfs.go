@@ -11,6 +11,7 @@ import (
 	"log"
 	"bufio"
 	"strings"
+	"github.com/sabhiram/go-git-ignore"
 )
 
 type TfsRepository struct {
@@ -69,7 +70,7 @@ func (repo *TfsRepository) IsClean() bool {
 	return strings.TrimSpace(ansi2utf8(output)) == "There are no pending changes."
 }
 
-func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistoryItem {
+func (repo *TfsRepository) GetHistory(gitIgnore *ignore.GitIgnore, fromChangeset int, count int) []*TfsHistoryItem {
 	var history []*TfsHistoryItem
 	commandArgs := []string { "history", repo.path, "/recursive", "/noprompt", "/format:Detailed", fmt.Sprintf("/stopafter:%d", count) }
 	if fromChangeset > 0 {
@@ -79,16 +80,16 @@ func (repo *TfsRepository) GetHistory(fromChangeset int, count int) []*TfsHistor
 	if err != nil {
 		log.Println(err)
 	} else {
-		history = parseHistory(repo, ansi2utf8(output), count)
+		history = parseHistory(repo, gitIgnore, ansi2utf8(output), count)
 	}
 	return history
 }
 
-func (repo *TfsRepository) GetHistoryFrom(startChangeset int, includeStartChangeset bool) []*TfsHistoryItem {
+func (repo *TfsRepository) GetHistoryFrom(gitIgnore *ignore.GitIgnore, startChangeset int, includeStartChangeset bool) []*TfsHistoryItem {
 	var result []*TfsHistoryItem
 	fromChangeset := 0
 	for {
-		history := repo.GetHistory(fromChangeset, 100)
+		history := repo.GetHistory(gitIgnore, fromChangeset, 100)
 		if len(history) == 0 {
 			break
 		} else if history[0].changeset < startChangeset || (!includeStartChangeset && history[0].changeset == startChangeset) {
